@@ -31,8 +31,8 @@ type EmscriptenCallback<BaseArgs extends any[], Result> = (
 ) => Result | AsyncifySleepResult<Result>
 type MaybeAsyncEmscriptenCallback<T extends EmscriptenCallback<any, any>> =
   T extends EmscriptenCallback<infer Args, infer Result>
-  ? (...args: Args) => Result | Promise<Result>
-  : never
+    ? (...args: Args) => Result | Promise<Result>
+    : never
 type MaybeAsyncEmscriptenCallbacks = {
   [K in keyof EmscriptenModuleCallbacks]: MaybeAsyncEmscriptenCallback<EmscriptenModuleCallbacks[K]>
 }
