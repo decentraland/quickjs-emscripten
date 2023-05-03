@@ -59,7 +59,7 @@ __metadata:
     typedoc: ^0.22.0
     typedoc-plugin-inline-sources: ^1.0.1
     typedoc-plugin-markdown: ^3.11.12
-    typescript: latest
+    typescript: 5.0.4
   languageName: unknown
   linkType: soft
 
@@ -4673,7 +4673,7 @@ fsevents@~2.1.1:
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@latest#~builtin<compat/typescript>":
+"typescript@patch:typescript@5.0.4#~builtin<compat/typescript>":
   version: 5.0.4
   resolution: "typescript@patch:typescript@npm%3A5.0.4#~builtin<compat/typescript>::version=5.0.4&hash=493e53"
   bin:
