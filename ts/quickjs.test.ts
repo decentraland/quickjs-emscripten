@@ -13,7 +13,7 @@ import {
 import { it, describe } from "mocha"
 import assert from "assert"
 import { isFail, VmCallResult } from "./vm-interface"
-import fs, { chmod } from "fs"
+import fs from "fs"
 import { QuickJSContext } from "./context"
 import { QuickJSAsyncContext } from "./context-asyncify"
 import { DEBUG_ASYNC, DEBUG_SYNC, memoizePromiseFactory, QuickJSFFI } from "./variants"
@@ -23,7 +23,7 @@ import { EitherFFI } from "./types"
 
 const TEST_NO_ASYNC = Boolean(process.env.TEST_NO_ASYNC)
 
-function contextTests(getContext: () => Promise<QuickJSContext>, isDebug = false) {
+function contextTests(getContext: () => Promise<QuickJSContext>) {
   let vm: QuickJSContext = undefined as any
   let ffi: EitherFFI = undefined as any
   let testId = 0
@@ -60,57 +60,11 @@ function contextTests(getContext: () => Promise<QuickJSContext>, isDebug = false
       numHandle.dispose()
     })
 
-    it("can round-trip a bigint", () => {
-      const int = 2n ** 64n
-      const numHandle = vm.newBigInt(int)
-      assert.equal(vm.getBigInt(numHandle), int)
-      numHandle.dispose()
-    })
-
-    it("can dump a bigint", () => {
-      const int = 2n ** 64n
-      const numHandle = vm.newBigInt(int)
-      assert.equal(vm.dump(numHandle), int)
-      numHandle.dispose()
-    })
-
     it("can round-trip a string", () => {
       const jsString = "an example 🤔 string with unicode 🎉"
       const stringHandle = vm.newString(jsString)
       assert.equal(vm.getString(stringHandle), jsString)
       stringHandle.dispose()
-    })
-
-    it("can round-trip a global symbol", () => {
-      const handle = vm.newSymbolFor("potatoes")
-      const dumped = vm.getSymbol(handle)
-      assert.equal(dumped, Symbol.for("potatoes"))
-      handle.dispose()
-    })
-
-    it("can round trip a unique symbol's description", () => {
-      const symbol = Symbol("cats")
-      const handle = vm.newUniqueSymbol(symbol)
-      const dumped = vm.getSymbol(handle)
-      assert.notStrictEqual(dumped, symbol)
-      assert.notStrictEqual(dumped, Symbol.for("cats"))
-      assert.equal(dumped.description, symbol.description)
-      handle.dispose()
-    })
-
-    it("can dump a symbol", () => {
-      const cows = Symbol.for("cows")
-      const birds = Symbol("birds")
-
-      const handles = [vm.newSymbolFor(cows), vm.newUniqueSymbol(birds)]
-
-      const [cowDump, birdDump] = handles.map((h) => vm.dump(h))
-
-      assert.strictEqual(cowDump, cows)
-      assert.strictEqual(birdDump.description, birds.description)
-      assert.notStrictEqual(birdDump, birds)
-
-      handles.map((h) => h.dispose())
     })
 
     it("can round-trip undefined", () => {
@@ -195,31 +149,6 @@ function contextTests(getContext: () => Promise<QuickJSContext>, isDebug = false
       value.dispose()
 
       fnHandle.dispose()
-    })
-
-    it("can handle more than signed int max functions being registered", function (done) {
-      // test for unsigned func_id impl
-      this.timeout(30000) // we need more time to register 2^16 functions
-
-      if (isDebug) {
-        this.skip() // no need to run this again, and it takes WAY too long
-      }
-
-      for (let i = 0; i < Math.pow(2, 16); i++) {
-        const funcID = i
-        const fnHandle = vm.newFunction(`__func-${i}`, () => {
-          return vm.newNumber(funcID)
-        })
-        if (i % 1024 === 0) {
-          // spot check every 1024 funcs
-          const res = vm.unwrapResult(vm.callFunction(fnHandle, vm.undefined))
-          const calledFuncID = vm.dump(res)
-          assert(calledFuncID === i)
-          res.dispose()
-        }
-        fnHandle.dispose()
-      }
-      done()
     })
   })
 
@@ -980,38 +909,6 @@ function asyncContextTests(getContext: () => Promise<QuickJSAsyncContext>) {
       )
     })
   })
-
-  describe("ASYNCIFY_STACK_SIZE", () => {
-    // | ASYNCIFY_STACK_SIZE | Max Nesting Levels |
-    // |---------------------|--------------------|
-    // | 4096 (default)      | 12                 |
-    // | 81920               | 297                |
-    it("is enough to support at least 20 levels of function nesting", async () => {
-      // The nesting levels of the test cannot be too high, otherwise the
-      // node.js call stack will overflow when executing `yarn test`
-      let asyncFunctionCalls = 0
-      const asyncFn = async () => {
-        asyncFunctionCalls++
-      }
-      vm.newAsyncifiedFunction("asyncFn", asyncFn).consume((fn) =>
-        vm.setProp(vm.global, "asyncFn", fn)
-      )
-
-      await vm.evalCodeAsync(`
-        let nestingLevels = 0
-        function nestingFn() {
-          nestingLevels++
-          asyncFn()
-          if (nestingLevels < 20) {
-            nestingFn()
-          }
-        }
-        nestingFn();
-      `)
-
-      assert.equal(asyncFunctionCalls, 20, "20 levels of nesting")
-    })
-  })
 }
 
 describe("QuickJSContext", function () {
@@ -1024,7 +921,7 @@ describe("QuickJSContext", function () {
   describe("DEBUG sync module", function () {
     const loader = memoizePromiseFactory(() => newQuickJSWASMModule(DEBUG_SYNC))
     const getContext = () => loader().then((mod) => mod.newContext())
-    contextTests.call(this, getContext, true)
+    contextTests.call(this, getContext)
   })
 })
 
@@ -1048,7 +945,7 @@ if (!TEST_NO_ASYNC) {
       const getContext = () => loader().then((mod) => mod.newContext())
 
       describe("sync API", () => {
-        contextTests(getContext, true)
+        contextTests(getContext)
       })
 
       describe("async API", () => {

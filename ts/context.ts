@@ -163,8 +163,6 @@ export class QuickJSContext implements LowLevelJavascriptVm<QuickJSHandle>, Disp
   protected _true: QuickJSHandle | undefined = undefined
   /** @private */
   protected _global: QuickJSHandle | undefined = undefined
-  /** @private */
-  protected _BigInt: QuickJSHandle | undefined = undefined
 
   /**
    * Use {@link QuickJS.createVm} to create a QuickJSContext instance.
@@ -308,47 +306,6 @@ export class QuickJSContext implements LowLevelJavascriptVm<QuickJSHandle>, Disp
   }
 
   /**
-   * Create a QuickJS [symbol](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol) value.
-   * No two symbols created with this function will be the same value.
-   */
-  newUniqueSymbol(description: string | symbol): QuickJSHandle {
-    const key = (typeof description === "symbol" ? description.description : description) ?? ""
-    const ptr = this.memory
-      .newHeapCharPointer(key)
-      .consume((charHandle) => this.ffi.QTS_NewSymbol(this.ctx.value, charHandle.value, 0))
-    return this.memory.heapValueHandle(ptr)
-  }
-
-  /**
-   * Get a symbol from the [global registry](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol#shared_symbols_in_the_global_symbol_registry) for the given key.
-   * All symbols created with the same key will be the same value.
-   */
-  newSymbolFor(key: string | symbol): QuickJSHandle {
-    const description = (typeof key === "symbol" ? key.description : key) ?? ""
-    const ptr = this.memory
-      .newHeapCharPointer(description)
-      .consume((charHandle) => this.ffi.QTS_NewSymbol(this.ctx.value, charHandle.value, 1))
-    return this.memory.heapValueHandle(ptr)
-  }
-
-  /**
-   * Create a QuickJS [bigint](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt) value.
-   */
-  newBigInt(num: bigint): QuickJSHandle {
-    if (!this._BigInt) {
-      const bigIntHandle = this.getProp(this.global, "BigInt")
-      this.memory.manage(bigIntHandle)
-      this._BigInt = new StaticLifetime(bigIntHandle.value as JSValueConstPointer, this.runtime)
-    }
-
-    const bigIntHandle = this._BigInt
-    const asString = String(num)
-    return this.newString(asString).consume((handle) =>
-      this.unwrapResult(this.callFunction(bigIntHandle, this.undefined, handle))
-    )
-  }
-
-  /**
    * `{}`.
    * Create a new QuickJS [object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Object_initializer).
    *
@@ -455,7 +412,7 @@ export class QuickJSContext implements LowLevelJavascriptVm<QuickJSHandle>, Disp
    */
   newFunction(name: string, fn: VmFunctionImplementation<QuickJSHandle>): QuickJSHandle {
     const fnId = ++this.fnNextId
-    this.setFunction(fnId, fn)
+    this.fnMap.set(fnId, fn)
     return this.memory.heapValueHandle(this.ffi.QTS_NewFunction(this.ctx.value, fnId, name))
   }
 
@@ -515,28 +472,6 @@ export class QuickJSContext implements LowLevelJavascriptVm<QuickJSHandle>, Disp
   getString(handle: QuickJSHandle): string {
     this.runtime.assertOwned(handle)
     return this.memory.consumeJSCharPointer(this.ffi.QTS_GetString(this.ctx.value, handle.value))
-  }
-
-  /**
-   * Converts `handle` into a Javascript symbol. If the symbol is in the global
-   * registry in the guest, it will be created with Symbol.for on the host.
-   */
-  getSymbol(handle: QuickJSHandle): symbol {
-    this.runtime.assertOwned(handle)
-    const key = this.memory.consumeJSCharPointer(
-      this.ffi.QTS_GetSymbolDescriptionOrKey(this.ctx.value, handle.value)
-    )
-    const isGlobal = this.ffi.QTS_IsGlobalSymbol(this.ctx.value, handle.value)
-    return isGlobal ? Symbol.for(key) : Symbol(key)
-  }
-
-  /**
-   * Converts `handle` to a Javascript bigint.
-   */
-  getBigInt(handle: QuickJSHandle): bigint {
-    this.runtime.assertOwned(handle)
-    const asString = this.getString(handle)
-    return BigInt(asString)
   }
 
   /**
@@ -801,12 +736,8 @@ export class QuickJSContext implements LowLevelJavascriptVm<QuickJSHandle>, Disp
       return this.getString(handle)
     } else if (type === "number") {
       return this.getNumber(handle)
-    } else if (type === "bigint") {
-      return this.getBigInt(handle)
     } else if (type === "undefined") {
       return undefined
-    } else if (type === "symbol") {
-      return this.getSymbol(handle)
     }
 
     const str = this.memory.consumeJSCharPointer(this.ffi.QTS_Dump(this.ctx.value, handle.value))
@@ -853,30 +784,9 @@ export class QuickJSContext implements LowLevelJavascriptVm<QuickJSHandle>, Disp
   }
 
   /** @private */
-  protected fnNextId = -32768 // min value of signed 16bit int used by Quickjs
+  protected fnNextId = 0
   /** @private */
-  protected fnMaps = new Map<number, Map<number, VmFunctionImplementation<QuickJSHandle>>>()
-
-  /** @private */
-  protected getFunction(fn_id: number): VmFunctionImplementation<QuickJSHandle> | undefined {
-    const map_id = fn_id >> 8
-    const fnMap = this.fnMaps.get(map_id)
-    if (!fnMap) {
-      return undefined
-    }
-    return fnMap.get(fn_id)
-  }
-
-  /** @private */
-  protected setFunction(fn_id: number, handle: VmFunctionImplementation<QuickJSHandle>) {
-    const map_id = fn_id >> 8
-    let fnMap = this.fnMaps.get(map_id)
-    if (!fnMap) {
-      fnMap = new Map<number, VmFunctionImplementation<QuickJSHandle>>()
-      this.fnMaps.set(map_id, fnMap)
-    }
-    return fnMap.set(fn_id, handle)
-  }
+  protected fnMap = new Map<number, VmFunctionImplementation<QuickJSHandle>>()
 
   /**
    * @hidden
@@ -887,9 +797,8 @@ export class QuickJSContext implements LowLevelJavascriptVm<QuickJSHandle>, Disp
         throw new Error("QuickJSContext instance received C -> JS call with mismatched ctx")
       }
 
-      const fn = this.getFunction(fn_id)
+      const fn = this.fnMap.get(fn_id)
       if (!fn) {
-        // this "throw" is not catch-able from the TS side. could we somehow handle this higher up?
         throw new Error(`QuickJSContext had no callback with id ${fn_id}`)
       }
 

@@ -422,7 +422,7 @@ Suggested use case: interactive debugging only.
 
 #### Defined in
 
-[ts/variants.ts:173](https://github.com/justjake/quickjs-emscripten/blob/main/ts/variants.ts#L173)
+[ts/variants.ts:176](https://github.com/justjake/quickjs-emscripten/blob/main/ts/variants.ts#L176)
 
 ___
 
@@ -443,7 +443,7 @@ debugging.
 
 #### Defined in
 
-[ts/variants.ts:139](https://github.com/justjake/quickjs-emscripten/blob/main/ts/variants.ts#L139)
+[ts/variants.ts:138](https://github.com/justjake/quickjs-emscripten/blob/main/ts/variants.ts#L138)
 
 ___
 
@@ -455,7 +455,7 @@ This is the default asyncified build variant.
 
 #### Defined in
 
-[ts/variants.ts:188](https://github.com/justjake/quickjs-emscripten/blob/main/ts/variants.ts#L188)
+[ts/variants.ts:193](https://github.com/justjake/quickjs-emscripten/blob/main/ts/variants.ts#L193)
 
 ___
 
@@ -468,7 +468,7 @@ This is the default (synchronous) build variant.
 
 #### Defined in
 
-[ts/variants.ts:155](https://github.com/justjake/quickjs-emscripten/blob/main/ts/variants.ts#L155)
+[ts/variants.ts:156](https://github.com/justjake/quickjs-emscripten/blob/main/ts/variants.ts#L156)
 
 ## Functions
 
@@ -662,7 +662,7 @@ https://bugs.chromium.org/p/v8/issues/detail?id=12076
 
 #### Defined in
 
-[ts/variants.ts:97](https://github.com/justjake/quickjs-emscripten/blob/main/ts/variants.ts#L97)
+[ts/variants.ts:96](https://github.com/justjake/quickjs-emscripten/blob/main/ts/variants.ts#L96)
 
 ___
 
@@ -689,7 +689,7 @@ https://bugs.chromium.org/p/v8/issues/detail?id=12076
 
 #### Defined in
 
-[ts/variants.ts:67](https://github.com/justjake/quickjs-emscripten/blob/main/ts/variants.ts#L67)
+[ts/variants.ts:66](https://github.com/justjake/quickjs-emscripten/blob/main/ts/variants.ts#L66)
 
 ___
 

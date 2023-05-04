@@ -66,7 +66,7 @@ ___
 
 ### type
 
-• `Optional` **type**: ``"module"`` \| ``"global"``
+• `Optional` **type**: ``"global"`` \| ``"module"``
 
 Global code (default)
 

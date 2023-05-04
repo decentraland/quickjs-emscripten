@@ -215,19 +215,10 @@ int QTS_BuildIsSanitizeLeak() {
 #endif
 }
 
-#ifdef QTS_ASYNCIFY
-EM_JS(void, set_asyncify_stack_size, (size_t size), {
-  Asyncify.StackSize = size || 81920;
-});
-#endif
-
 /**
  * Set the stack size limit, in bytes. Set to 0 to disable.
  */
 void QTS_RuntimeSetMaxStackSize(JSRuntime *rt, size_t stack_size) {
-#ifdef QTS_ASYNCIFY
-  set_asyncify_stack_size(stack_size);
-#endif
   JS_SetMaxStackSize(rt, stack_size);
 }
 
@@ -341,69 +332,6 @@ JSValue *QTS_NewString(JSContext *ctx, BorrowedHeapChar *string) {
 
 JSBorrowedChar *QTS_GetString(JSContext *ctx, JSValueConst *value) {
   return JS_ToCString(ctx, *value);
-}
-
-JSValue qts_get_symbol_key(JSContext *ctx, JSValueConst *value) {
-  JSValue global = JS_GetGlobalObject(ctx);
-  JSValue Symbol = JS_GetPropertyStr(ctx, global, "Symbol");
-  JS_FreeValue(ctx, global);
-
-  JSValue Symbol_keyFor = JS_GetPropertyStr(ctx, Symbol, "keyFor");
-  JSValue key = JS_Call(ctx, Symbol_keyFor, Symbol, 1, value);
-  JS_FreeValue(ctx, Symbol_keyFor);
-  JS_FreeValue(ctx, Symbol);
-  return key;
-}
-
-JSValue *QTS_NewSymbol(JSContext *ctx, BorrowedHeapChar *description, int isGlobal) {
-  JSValue global = JS_GetGlobalObject(ctx);
-  JSValue Symbol = JS_GetPropertyStr(ctx, global, "Symbol");
-  JS_FreeValue(ctx, global);
-  JSValue descriptionValue = JS_NewString(ctx, description);
-  JSValue symbol;
-
-  if (isGlobal != 0) {
-    JSValue Symbol_for = JS_GetPropertyStr(ctx, Symbol, "for");
-    symbol = JS_Call(ctx, Symbol_for, Symbol, 1, &descriptionValue);
-    JS_FreeValue(ctx, descriptionValue);
-    JS_FreeValue(ctx, Symbol_for);
-    JS_FreeValue(ctx, Symbol);
-    return jsvalue_to_heap(symbol);
-  }
-
-  symbol = JS_Call(ctx, Symbol, JS_UNDEFINED, 1, &descriptionValue);
-  JS_FreeValue(ctx, descriptionValue);
-  JS_FreeValue(ctx, Symbol);
-
-  return jsvalue_to_heap(symbol);
-}
-
-MaybeAsync(JSBorrowedChar *) QTS_GetSymbolDescriptionOrKey(JSContext *ctx, JSValueConst *value) {
-  JSBorrowedChar *result;
-
-  JSValue key = qts_get_symbol_key(ctx, value);
-  if (!JS_IsUndefined(key)) {
-    result = JS_ToCString(ctx, key);
-    JS_FreeValue(ctx, key);
-    return result;
-  }
-
-  JSValue description = JS_GetPropertyStr(ctx, *value, "description");
-  result = JS_ToCString(ctx, description);
-  JS_FreeValue(ctx, description);
-  return result;
-}
-
-int QTS_IsGlobalSymbol(JSContext *ctx, JSValueConst *value) {
-  JSValue key = qts_get_symbol_key(ctx, value);
-  int undefined = JS_IsUndefined(key);
-  JS_FreeValue(ctx, key);
-
-  if (undefined) {
-    return 0;
-  } else {
-    return 1;
-  }
 }
 
 int QTS_IsJobPending(JSRuntime *rt) {
@@ -567,7 +495,7 @@ OwnedHeapChar *QTS_Typeof(JSContext *ctx, JSValueConst *value) {
 
   if (JS_IsNumber(*value)) {
     result = "number";
-  } else if (JS_IsBigInt(ctx, *value)) {
+  } else if (tag == JS_TAG_BIG_INT) {
     result = "bigint";
   } else if (JS_IsBigFloat(*value)) {
     result = "bigfloat";
@@ -639,7 +567,7 @@ int QTS_BuildIsAsyncify() {
 // -------------------
 // function: C -> Host
 #ifdef __EMSCRIPTEN__
-EM_JS(MaybeAsync(JSValue *), qts_host_call_function, (JSContext * ctx, JSValueConst *this_ptr, int argc, JSValueConst *argv, uint32_t magic_func_id), {
+EM_JS(MaybeAsync(JSValue *), qts_host_call_function, (JSContext * ctx, JSValueConst *this_ptr, int argc, JSValueConst *argv, int magic_func_id), {
 #ifdef QTS_ASYNCIFY
   const asyncify = {['handleSleep'] : Asyncify.handleSleep};
 #else
@@ -661,7 +589,7 @@ JSValue qts_call_function(JSContext *ctx, JSValueConst this_val, int argc, JSVal
 }
 
 // Function: Host -> QuickJS
-JSValue *QTS_NewFunction(JSContext *ctx, uint32_t func_id, const char *name) {
+JSValue *QTS_NewFunction(JSContext *ctx, int func_id, const char *name) {
 #ifdef QTS_DEBUG_MODE
   char msg[500];
   sprintf(msg, "new_function(name: %s, magic: %d)", name, func_id);

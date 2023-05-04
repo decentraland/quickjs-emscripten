@@ -135,13 +135,7 @@ function cTypeToTypescriptType(ctype: string): ParsedType {
   if (type === "void") {
     ffi = null
   }
-  if (
-    type === "double" ||
-    type === "int" ||
-    type === "size_t" ||
-    type === "uint16_t" ||
-    type === "uint32_t"
-  ) {
+  if (type === "double" || type === "int" || type === "size_t") {
     ffi = "number"
     typescript = "number"
   }
@@ -243,8 +237,8 @@ function buildSyncSymbols(matches: RegExpMatchArray[]) {
   return filtered.map((fn) => "_" + fn.functionName)
 }
 
-// Input: EM_JS(MaybeAsync(JSValue *), qts_host_call_function, (JSContext * ctx, JSValueConst *this_ptr, int argc, JSValueConst *argv, uint32_t magic_func_id), {
-// Match: MaybeAsync(JSValue *), qts_host_call_function, (JSContext * ctx, JSValueConst *this_ptr, int argc, JSValueConst *argv, uint32_t magic_func_id)
+// Input: EM_JS(MaybeAsync(JSValue *), qts_host_call_function, (JSContext * ctx, JSValueConst *this_ptr, int argc, JSValueConst *argv, int magic_func_id), {
+// Match: MaybeAsync(JSValue *), qts_host_call_function, (JSContext * ctx, JSValueConst *this_ptr, int argc, JSValueConst *argv, int magic_func_id)
 function buildAsyncifySymbols(matches: RegExpMatchArray[]) {
   const parsed = matches.map((match) => {
     const [, contents] = match
@@ -318,7 +312,7 @@ export function matchAll(regexp: RegExp, text: string) {
   // We're using .exec, which mutates the regexp by setting the .lastIndex
   const initialLastIndex = regexp.lastIndex
   const result: RegExpExecArray[] = []
-  let match: RegExpExecArray | null = null
+  let match = null
   while ((match = regexp.exec(text)) !== null) {
     result.push(match)
   }
