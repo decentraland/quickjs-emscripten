@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.23.0
+
+- [#114](https://github.com/justjake/quickjs-emscripten/pull/114) (thanks to @yar2001) improve stack size for ASYNCIFY build variants:
+  - Change the default ASYNCIFY_STACK_SIZE from 4096 bytes to 81920 bytes. This equates to an increase from approximately 12 to 297 function frames. See the PR for more details.
+  - `QuickJSAsyncRuntime.setMaxStackSize(stackSizeBytes)` now also adjusts the ASYNCIFY_STACK_SIZE for the entire module.
+
+## v0.22.0
+
+- [#78](https://github.com/justjake/quickjs-emscripten/pull/78), [#105](https://github.com/justjake/quickjs-emscripten/pull/105) (thanks to @ayaboy) add Symbol helpers `context.newUniqueSymbol`, `context.newSymbolFor`, as well as support for symbols in `context.dump`.
+- [#104](https://github.com/justjake/quickjs-emscripten/pull/104) BigInt support.
+- [#100](https://github.com/justjake/quickjs-emscripten/pull/100) **Breaking change** upgrade Emscripten version and switch to `async import(...)` for loading variants.
+  We also drop support for older browsers and Node versions:
+
+  - Node >= 16 is required
+  - Safari >= 14.1 is required
+  - Typescript >= 4.7 is recommended, but not required.
+
+## v0.21.2
+
+- [#94](https://github.com/justjake/quickjs-emscripten/pull/94) (thanks to @swimmadude66) allows QuickJS to create many more functions before overflowing.
+
+## v0.21.1
+
+- [#66](https://github.com/justjake/quickjs-emscripten/pull/66) (thanks to @BickelLukas) fixes `ReferenceError` when running in browser due to `global.process`
+
 ## v0.21.0
 
 - [#61](https://github.com/justjake/quickjs-emscripten/pull/61) (thanks to @torywheelwright):
